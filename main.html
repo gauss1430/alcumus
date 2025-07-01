@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Math Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .difficulty-btn.active {
+            background-color: #4f46e5;
+            color: white;
+            box-shadow: 0 4px 14px 0 rgb(0 0 0 / 10%);
+        }
+        .feedback-correct {
+            animation: fadeIn 0.5s ease-in-out, slideInUp 0.5s ease-in-out;
+        }
+        .feedback-incorrect {
+            animation: fadeIn 0.5s ease-in-out, shake 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideInUp {
+            from { transform: translateY(20px); }
+            to { transform: translateY(0); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .loader {
+            border-top-color: #4f46e5;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 flex items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-lg p-6 md:p-8 space-y-6">
+        
+        <!-- Header -->
+        <div class="text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">AI Math Challenge</h1>
+            <p class="text-gray-500 mt-2">Select a difficulty, solve the problem, and see how you do!</p>
+        </div>
+
+        <!-- Difficulty Selection -->
+        <div>
+            <h2 class="text-lg font-semibold text-gray-700 mb-3">1. Choose Difficulty</h2>
+            <div id="difficulty-selector" class="grid grid-cols-3 gap-3">
+                <button class="difficulty-btn w-full py-3 px-4 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 font-semibold transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" data-difficulty="Easy">Easy</button>
+                <button class="difficulty-btn w-full py-3 px-4 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 font-semibold transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 active" data-difficulty="Medium">Medium</button>
+                <button class="difficulty-btn w-full py-3 px-4 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 font-semibold transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" data-difficulty="Hard">Hard</button>
+            </div>
+        </div>
+        
+        <!-- Get New Problem Button -->
+        <div class="text-center">
+             <button id="new-problem-btn" class="w-full md:w-auto bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 transition-all duration-300 ease-in-out shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                Get New Problem
+            </button>
+        </div>
+
+        <!-- Problem Display Area -->
+        <div id="problem-container" class="bg-gray-100 rounded-lg p-6 min-h-[100px] flex items-center justify-center text-center">
+            <p id="problem-text" class="text-xl md:text-2xl font-medium text-gray-700">Your math problem will appear here.</p>
+            <div id="loader" class="loader w-8 h-8 rounded-full border-4 border-gray-200 hidden"></div>
+        </div>
+
+        <!-- Answer Submission -->
+        <div id="answer-section" class="hidden">
+            <h2 class="text-lg font-semibold text-gray-700 mb-3">2. Your Answer</h2>
+            <div class="flex flex-col sm:flex-row gap-3">
+                <input type="text" id="answer-input" placeholder="Enter your answer here" class="flex-grow w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                <button id="submit-answer-btn" class="w-full sm:w-auto bg-green-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-600 transition-all duration-300 ease-in-out shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Submit</button>
+            </div>
+        </div>
+
+        <!-- Feedback Area -->
+        <div id="feedback-container" class="min-h-[80px]"></div>
+
+        <!-- Stats -->
+        <div class="border-t border-gray-200 pt-4 text-center">
+             <h2 class="text-lg font-semibold text-gray-700 mb-2">Your Stats</h2>
+             <div class="flex justify-around items-center">
+                <div>
+                    <p class="text-gray-500">Correct / Total</p>
+                    <p id="score" class="text-2xl font-bold text-indigo-600">0 / 0</p>
+                </div>
+                <div>
+                    <p class="text-gray-500">Probability of Correct</p>
+                    <p id="probability" class="text-2xl font-bold text-indigo-600">N/A</p>
+                </div>
+             </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const difficultySelector = document.getElementById('difficulty-selector');
+        const newProblemBtn = document.getElementById('new-problem-btn');
+        const problemText = document.getElementById('problem-text');
+        const problemContainer = document.getElementById('problem-container');
+        const loader = document.getElementById('loader');
+        const answerSection = document.getElementById('answer-section');
+        const answerInput = document.getElementById('answer-input');
+        const submitAnswerBtn = document.getElementById('submit-answer-btn');
+        const feedbackContainer = document.getElementById('feedback-container');
+        const scoreEl = document.getElementById('score');
+        const probabilityEl = document.getElementById('probability');
+
+        // --- State Variables ---
+        let currentDifficulty = 'Medium';
+        let currentProblem = '';
+        let correctAnswers = 0;
+        let totalProblems = 0;
+        let isWaitingForAnswer = false;
+
+        // --- Gemini API Configuration ---
+        const apiKey = ""; // Leave empty, will be handled by the environment
+        const genAIApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+        // --- Event Listeners ---
+        
+        // Listen for clicks on difficulty buttons
+        difficultySelector.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                document.querySelectorAll('.difficulty-btn').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+                currentDifficulty = e.target.dataset.difficulty;
+            }
+        });
+
+        // Listen for click on the "New Problem" button
+        newProblemBtn.addEventListener('click', generateProblem);
+
+        // Listen for click on the "Submit Answer" button
+        submitAnswerBtn.addEventListener('click', evaluateAnswer);
+        
+        // Allow submitting with Enter key
+        answerInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                evaluateAnswer();
+            }
+        });
+
+        // --- Core Functions ---
+
+        /**
+         * Shows a loading state in the UI.
+         * @param {boolean} isLoading - Whether to show or hide the loader.
+         */
+        function setLoading(isLoading) {
+            if (isLoading) {
+                loader.classList.remove('hidden');
+                problemText.classList.add('hidden');
+                newProblemBtn.disabled = true;
+                newProblemBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                submitAnswerBtn.disabled = true;
+                submitAnswerBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                loader.classList.add('hidden');
+                problemText.classList.remove('hidden');
+                newProblemBtn.disabled = false;
+                newProblemBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                submitAnswerBtn.disabled = false;
+                submitAnswerBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        /**
+         * Fetches a new math problem from the Gemini API.
+         */
+        async function generateProblem() {
+            if (isWaitingForAnswer) {
+                // Prevent getting a new problem if one is already active
+                feedbackContainer.innerHTML = `
+                    <div class="p-4 rounded-lg bg-yellow-100 border border-yellow-300 text-yellow-800">
+                        Please submit an answer for the current problem first.
+                    </div>
+                `;
+                return;
+            }
+
+            setLoading(true);
+            feedbackContainer.innerHTML = ''; // Clear old feedback
+            answerInput.value = ''; // Clear old answer
+
+            const prompt = `Generate a single math word problem appropriate for a '${currentDifficulty}' difficulty level. The problem should have a clear, definitive numerical or simple algebraic answer. Do not include the answer in your response. Just provide the problem statement.`;
+
+            try {
+                const payload = {
+                    contents: [{ role: "user", parts: [{ text: prompt }] }]
+                };
+                const response = await fetch(genAIApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0]) {
+                    currentProblem = result.candidates[0].content.parts[0].text.trim();
+                    problemText.textContent = currentProblem;
+                    answerSection.classList.remove('hidden');
+                    isWaitingForAnswer = true;
+                } else {
+                    problemText.textContent = 'Could not generate a problem. Please try again.';
+                    console.error("Unexpected API response structure:", result);
+                }
+            } catch (error) {
+                problemText.textContent = 'Failed to fetch problem. Check the console for details.';
+                console.error('Error generating problem:', error);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        /**
+         * Submits the user's answer to the Gemini API for evaluation.
+         */
+        async function evaluateAnswer() {
+            const userAnswer = answerInput.value.trim();
+            if (!userAnswer) {
+                displayFeedback({
+                    isCorrect: false,
+                    explanation: "Please enter an answer before submitting."
+                }, false);
+                return;
+            }
+
+            setLoading(true);
+            feedbackContainer.innerHTML = '';
+
+            const prompt = `
+                Math Problem: "${currentProblem}"
+                User's Answer: "${userAnswer}"
+
+                Is the user's answer correct? 
+                Please respond with ONLY a JSON object in the format:
+                {
+                  "isCorrect": boolean,
+                  "explanation": "A brief explanation of why the answer is correct or incorrect. If incorrect, provide the correct answer and the steps to get it."
+                }
+            `;
+            
+            try {
+                const payload = {
+                    contents: [{ role: "user", parts: [{ text: prompt }] }],
+                    generationConfig: { responseMimeType: "application/json" }
+                };
+                const response = await fetch(genAIApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0]) {
+                    const evaluation = JSON.parse(result.candidates[0].content.parts[0].text);
+                    displayFeedback(evaluation, true);
+                    updateScore(evaluation.isCorrect);
+                    isWaitingForAnswer = false; // Problem cycle is complete
+                    answerSection.classList.add('hidden'); // Hide input until new problem
+                } else {
+                    displayFeedback({
+                        isCorrect: false,
+                        explanation: "Could not evaluate the answer. Please try again."
+                    }, false);
+                    console.error("Unexpected API response structure:", result);
+                }
+            } catch (error) {
+                displayFeedback({
+                    isCorrect: false,
+                    explanation: "Failed to evaluate answer. Check the console for details."
+                }, false);
+                console.error('Error evaluating answer:', error);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        /**
+         * Displays the feedback from the AI to the user.
+         * @param {object} evaluation - The evaluation object from the API.
+         * @param {boolean} evaluation.isCorrect - If the answer was correct.
+         * @param {string} evaluation.explanation - The AI's explanation.
+         */
+        function displayFeedback(evaluation) {
+            feedbackContainer.innerHTML = ''; // Clear previous feedback
+            const feedbackCard = document.createElement('div');
+            feedbackCard.classList.add('p-4', 'rounded-lg', 'border');
+
+            if (evaluation.isCorrect) {
+                feedbackCard.classList.add('bg-green-100', 'border-green-300', 'text-green-800', 'feedback-correct');
+                feedbackCard.innerHTML = `
+                    <h3 class="font-bold text-lg">Correct! ✅</h3>
+                    <p class="mt-1">${evaluation.explanation}</p>
+                `;
+            } else {
+                feedbackCard.classList.add('bg-red-100', 'border-red-300', 'text-red-800', 'feedback-incorrect');
+                feedbackCard.innerHTML = `
+                    <h3 class="font-bold text-lg">Incorrect ❌</h3>
+                    <p class="mt-1">${evaluation.explanation}</p>
+                `;
+            }
+            feedbackContainer.appendChild(feedbackCard);
+        }
+
+        /**
+         * Updates the user's score and the probability display.
+         * @param {boolean} wasCorrect - Whether the last answer was correct.
+         */
+        function updateScore(wasCorrect) {
+            totalProblems++;
+            if (wasCorrect) {
+                correctAnswers++;
+            }
+
+            scoreEl.textContent = `${correctAnswers} / ${totalProblems}`;
+
+            if (totalProblems > 0) {
+                const probability = (correctAnswers / totalProblems) * 100;
+                probabilityEl.textContent = `${probability.toFixed(1)}%`;
+            } else {
+                probabilityEl.textContent = 'N/A';
+            }
+        }
+    </script>
+</body>
+</html>
